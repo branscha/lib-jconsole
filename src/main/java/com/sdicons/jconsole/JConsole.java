@@ -114,13 +114,13 @@ extends JScrollPane
             errPump = new PipePump(lErrorToConsoleStream, attrError);
             final Thread lErrThread = new Thread(errPump);
             lErrThread.setDaemon(true);
-            lErrThread.setPriority(Thread.NORM_PRIORITY + 1);
+            lErrThread.setPriority(Thread.NORM_PRIORITY + 2);
             lErrThread.start();
 
             outPump = new PipePump(lNormalToConsoleStream, attrOut);
             final Thread lNormalThread = new Thread(outPump);
             lNormalThread.setDaemon(true);
-            lNormalThread.setPriority(Thread.NORM_PRIORITY - 1);
+            lNormalThread.setPriority(Thread.NORM_PRIORITY - 2);
             lNormalThread.start();
         }
         catch (IOException e)
@@ -473,17 +473,13 @@ extends JScrollPane
                 final byte[] lBuf = new byte[1024];
                 int lBytesRead;
 
-                // The trick is to wait for some input on the stream and immediately acquire a lock on the console.
-                // The first read operation does not read any data, it simply waits until data is available.
-                // The pump starts working *after* the lock is acquired. We have at least two pumps, one for the
-                // output and one for the errors. These two streams are competing for the console. Without acquiring
-                // the lock, the stream with least data would mostly be the first one to gain the console.
-                // Using the lock, the stream that was first written on by the user will mostly be the first
-                // one getting the lock.
-                while (in.read(lBuf, 0, 0) != -1)
+                while (in.read(lBuf, 0, 1) != -1)
                 {
                     synchronized (JConsole.this)
                     {
+                        lBytesRead = in.read(lBuf, 1, 1023) + 1;
+                        print(new String(lBuf, 0, lBytesRead), attr);
+
                         while(in.available() > 0)
                         {
                             lBytesRead = in.read(lBuf);
